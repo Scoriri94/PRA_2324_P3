@@ -1,0 +1,6 @@
+# Ignorar archivos con extensión .gch
+*.gch
+
+# Ignorar la carpeta bin/
+bin/
+
