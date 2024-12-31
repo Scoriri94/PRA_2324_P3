@@ -1,139 +1,127 @@
 #ifndef HASHTABLE_H
 #define HASHTABLE_H
 
-#include "../PRA_2324_P1/ListLinked.h"  
-
+#include <ostream>
+#include <stdexcept>
 #include "Dict.h"
 #include "TableEntry.h"
-#include <stdexcept>
-#include <ostream>
+#include "../PRA_2324_P1/ListLinked.h"
 
 template <typename V>
 class HashTable : public Dict<V> {
-	private:
-		int n;//num elementos almacenados live
-		int max;//tamaño tabla
-		ListLinked<TableEntry<V>>* table;//tabla de cubetas, almacenan pares clave->valor de tipo TE<V>
-	private:
-		int h(std::string key) {
-			int count = 0;
-			for (int i = 0; i < key.length(); i++) {
-			       count += int(key.at(i));
-			}
-			return count % max;	       
-		}
+private:
+    int n;
+    int max;
+    ListLinked<TableEntry<V>>* table;
 
-		HashTable(int size) : n(0), max(size) {
-			table = new ListLinked<TableEntry<V>>[max];
-		}
+    int h(std::string key) {
+        int count = 0;
+        for (int i = 0; i < key.length(); i++) {
+            count += int(key.at(i));
+        }
+        return count % max;
+    }
 
-		~HashTable() {
-			delete[] table;
-		}
+public:
+    HashTable(int size) : n(0), max(size) {
+        table = new ListLinked<TableEntry<V>>[max];  // Inicializa el array de cubetas
+    }
 
-		int capacity() {
-			return max;
-		}
+    ~HashTable() {
+        delete[] table;
+    }
 
-		friend std::ostream& operator<<(std::ostream &out, const HashTable<V> &th) {
-			for( int i = 0; i < th.max; i++) {
-				out << "Bucket " << i << "=> ";
-				if (th.table[i].n == 0) {
-					out << "[]";
-				} else {
+    int capacity() {
+        return max;
+    }
 
-					out << "[";
-					for( int j = 0; j < th.table[i].n; j++) {
-						const TableEntry<V>& entry = th.table[i][j];
-						out << "(Clave: " << entry.key << ", Valor: "<< entry.value << ")";
-						if (j != th.table[i].n - 1) {
-							out << " -> ";
-						}
-					}
-			        	out << "]";
-				}
-				out << std::endl;
-			}
-			return out;
-		}	
-		
-		V operator[](std::string key) {
-			int index = h(key);
-			ListLinked<TableEntry<V>>* bucket = table[index];
+    friend std::ostream& operator<<(std::ostream &out, const HashTable<V> &th) {
+        out << "HashTable [entries: " << th.n << ", capacity: " << th.max << "]" << std::endl;
+        out << "===============" << std::endl;
 
-			for ( int i = 0; i < bucket->n; i++) {
-				TableEntry<V>& entry =(*bucket)[i];  
-				if (entry.key == key) {
-					return entry.value;
-				}
-			}
-			throw std::runtime_error("No existe un valor para esta clave");
-		}
+        for (int i = 0; i < th.max; i++) {
+            out << "== Cubeta " << i << " ==" << std::endl;
+            out << "List => ";
+            if (th.table[i].size() == 0) {
+                out << "[]";
+            } else {
+                out << "[";
+                for (int j = 0; j < th.table[i].size(); j++) {
+                    const TableEntry<V>& entry = th.table[i][j];
+                    out << "(" << entry.key << " => " << entry.value << ")";
+                    if (j != th.table[i].size() - 1) {
+                        out << " ";
+                    }
+                }
+                out << "]";
+            }
+            out << std::endl;
+        }
+        out << "===============" << std::endl;
+        return out;
+    }
 
-		void insert(std::string key, V value) override {
-			int index = h(key);
+    V operator[](std::string key) {
+        int index = h(key);
+        ListLinked<TableEntry<V>>& bucket = table[index];
 
-			if (table[index] == nullptr) {//si es bucket no esta inicializado crea una nueva lista para esta clave
-				table[index] = new ListLinked<TableEntry<V>>();
-			}
+        for (int i = 0; i < bucket.size(); i++) {
+            TableEntry<V>& entry = bucket[i];
+            if (entry.key == key) {
+                return entry.value;
+            }
+        }
+        throw std::runtime_error("No existe un valor para esta clave");
+    }
 
-			ListLinked<TableEntry<V>>* bucket = table[index];
-			//verfica si la clave ya existe
-			for (int i = 0; i < bucket->size(); i++) {
-				TableEntry<V>& entry = (*bucket)[i];
-				if (entry.key == key) {
-				throw std::runtime_error("Esta clave ya existe");
-				}
-			}
-			bucket->insert(bucket->size(), TableEntry<V>{key, value});
-			n++;
-		}
+    void insert(const std::string& key, V value) override {
+        int index = h(key);
+        ListLinked<TableEntry<V>>& bucket = table[index];
 
-		V search(std::string key) {
-			int index = h(key);
-   			ListLinked<TableEntry<V>>& bucket = table[index]; // Accede al bucket correspondiente.
+        for (int i = 0; i < bucket.size(); i++) {
+            TableEntry<V>& entry = bucket[i];
+            if (entry.key == key) {
+                throw std::runtime_error("Esta clave ya existe");
+            }
+        }
 
-    			for (int i = 0; i < bucket->n; i++) { // Recorre los elementos en el bucket.
-        			TableEntry<V>& entry = bucket[i];
-       				if (entry.key == key) {
-            			return entry.value; // Retorna el valor asociado a la clave.
-        			}
-   			}	
+        bucket.append(TableEntry<V>{key, value});
+        n++;
+    }
 
-   			 throw std::runtime_error("No existe un valor para esta clave");
-		}
+    V search(const std::string& key) {
+        int index = h(key);
+        ListLinked<TableEntry<V>>& bucket = table[index];
 
-		V remove(std::string key) override {
-   			 int index = h(key);
-    			 ListLinked<TableEntry<V>>& bucket = table[index]; // Accede al bucket correspondiente.
+        for (int i = 0; i < bucket.size(); i++) {
+            TableEntry<V>& entry = bucket[i];
+            if (entry.key == key) {
+                return entry.value;
+            }
+        }
+        throw std::runtime_error("No existe un valor para esta clave");
+    }
 
-    			for (int i = 0; i < bucket->n; i++) { // Recorre los elementos en el bucket.
-        			TableEntry<V>& entry = bucket[i];
-        			if (entry.key == key) {
-            			V value = entry.value; // Guarda el valor antes de eliminarlo.
+    V remove(const std::string& key) override {
+        int index = h(key);
+        ListLinked<TableEntry<V>>& bucket = table[index];
 
-            			bucket.remove(i); // Elimina el elemento en la posición i.
-            			n--;
-            			return value; // Retorna el valor eliminado.
-        			}
-    			}
+        for (int i = 0; i < bucket.size(); i++) {
+            TableEntry<V>& entry = bucket[i];
+            if (entry.key == key) {
+                V value = entry.value;
+                bucket.remove(i);
+                n--;
+                return value;
+            }
+        }
+        throw std::runtime_error("No se pudo eliminar la clave porque no existe.");
+    }
 
-    			throw std::runtime_error("No se pudo eliminar la clave porque no existe.");
-		}
-
-		int entries() override {
-			int total_entries = 0;
-
-
-    			for (int i = 0; i < max; i++) { // Recorre todos los buckets.
-        			ListLinked<TableEntry<V>>& bucket = table[i];
-				if (bucket != nullptr) {
-      	  			total_entries += bucket->n; // Suma el número de entradas en cada bucket.
-   				}
-			}
-   			return total_entries; // Devuelve el número total de entradas en la tabla.
-		}
-
+    int entries() override {
+        return n;
+    }
 };
-		
+
 #endif
+
